@@ -61,7 +61,13 @@ def fetch_pdfs_from_drive(service, folder_id):
 
 with st.sidebar:
     st.header("⚙️ Configuración")
-    api_key = st.text_input("Ingresa tu Google Gemini API Key", type="password")
+    # Leemos la clave de Gemini directamente desde los secrets
+    try:
+        api_key = st.secrets["GEMINI_API_KEY"]
+        st.success("API Key de Gemini cargada correctamente.")
+    except KeyError:
+        api_key = st.text_input("Ingresa tu Google Gemini API Key", type="password")
+        
     sync_button = st.button("Sincronizar con Google Drive")
 
 if "vector_store" not in st.session_state:
@@ -104,7 +110,7 @@ user_query = st.text_area("¿Qué necesitas planificar hoy? (Ej. Ejercicios de t
 
 if st.button("Generar Respuesta"):
     if not api_key:
-        st.error("Ingresa la API Key de Gemini.")
+        st.error("Falta la API Key de Gemini.")
     elif st.session_state.vector_store is None:
         st.error("Primero debes sincronizar con Drive.")
     elif user_query:

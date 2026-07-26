@@ -1,9 +1,17 @@
-# 🏀 Asistente Táctico Automático (Básquetbol Formativas)
+# 🏀 Asistente Táctico Automático
 
-Aplicación construida con **Streamlit** y **LangChain RAG** para procesar automáticamente tu carpeta de Google Drive.
+## 🚀 Instrucciones para resolver el error "st.secrets has no key"
 
-## 🚀 Instrucciones de Actualización
-1. Borra los archivos viejos de tu repositorio en GitHub.
-2. Sube estos tres archivos nuevos (`app.py`, `requirements.txt` y `README.md`).
-3. En Streamlit Cloud, ve a tu aplicación, haz clic en "Manage app", luego en los tres puntos (⋮) y selecciona **"Reboot app"** (o elimínala y vuelve a crearla para limpiar la caché por completo).
-4. Asegúrate de tener configurado el secreto `gcp_service_account` en los settings de Streamlit.
+El error ocurre porque la aplicación necesita el archivo `secrets.toml` con las credenciales de Google Drive. He preparado toda la estructura para que funcione.
+
+### Si trabajas en tu computadora (Local)
+1. Descomprime este archivo ZIP.
+2. Verás que hay una carpeta oculta llamada `.streamlit`. Adentro está el archivo `secrets.toml`.
+3. Abre `secrets.toml` y **pega tus verdaderas credenciales** allí.
+4. Ejecuta `streamlit run app.py`.
+
+### Si estás en Streamlit Cloud
+1. Sube `app.py` y `requirements.txt` a GitHub.
+2. Abre el archivo `secrets.toml` que viene en este ZIP.
+3. Copia todo su contenido y pégalo en la sección **"Secrets"** de la configuración de tu app en Streamlit Cloud (Settings > Secrets).
+4. Modifica los valores con tus credenciales reales y dale a Save.
