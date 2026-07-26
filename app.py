@@ -5,13 +5,14 @@ import io
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
+
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_community.vectorstores import Chroma
-from langchain.chains.retrieval import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
 
 st.set_page_config(page_title="Biblioteca Maestra de Básquet", layout="wide")
 st.title("🏀 Asistente Táctico Automático")
@@ -124,7 +125,16 @@ if st.button("Generar Respuesta"):
             ])
             
             retriever = st.session_state.vector_store.as_retriever(search_kwargs={"k": 5})
-            rag_chain = create_retrieval_chain(retriever, create_stuff_documents_chain(llm, prompt))
             
-            response = rag_chain.invoke({"input": user_query})
-            st.write(response["answer"])
+            def format_docs(docs):
+                return "\n\n".join(doc.page_content for doc in docs)
+            
+            rag_chain = (
+                {"context": retriever | format_docs, "input": RunnablePassthrough()}
+                | prompt
+                | llm
+                | StrOutputParser()
+            )
+            
+            response = rag_chain.invoke(user_query)
+            st.write(response)
