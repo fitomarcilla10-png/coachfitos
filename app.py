@@ -2,6 +2,7 @@ import streamlit as st
 import tempfile
 import os
 import io
+import json
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
@@ -21,9 +22,8 @@ st.title("🏀 Asistente Táctico Automático")
 FOLDER_ID = "10I4H2BpLHM5msIDwWs21ZDE76JxLjHdM"
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 
-def get_drive_service():
-    """Autentica y crea el servicio de Google Drive usando los Secrets de Streamlit."""
-    creds_dict = st.secrets["gcp_service_account"]
+def get_drive_service(creds_dict):
+    """Autentica el servicio de Google Drive usando el JSON cargado manualmente."""
     creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
     return build('drive', 'v3', credentials=creds)
 
@@ -48,7 +48,6 @@ def fetch_pdfs_from_drive(service, folder_id):
         while done is False:
             status, done = downloader.next_chunk()
             
-        # Guardar en temporal para que PyPDFLoader pueda leerlo
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
         temp_file.write(fh.getvalue())
         temp_file.close()
@@ -61,48 +60,55 @@ def fetch_pdfs_from_drive(service, folder_id):
 
 with st.sidebar:
     st.header("⚙️ Configuración")
-    # Leemos la clave de Gemini directamente desde los secrets
-    try:
-        api_key = st.secrets["GEMINI_API_KEY"]
-        st.success("API Key de Gemini cargada correctamente.")
-    except KeyError:
-        api_key = st.text_input("Ingresa tu Google Gemini API Key", type="password")
+    
+    # 1. Clave de Gemini
+    api_key = st.text_input("Ingresa tu Google Gemini API Key", type="password")
+    
+    # 2. Carga directa del archivo JSON de Google Cloud
+    json_file = st.file_uploader("Sube tu archivo JSON de Google Cloud", type="json")
         
     sync_button = st.button("Sincronizar con Google Drive")
 
 if "vector_store" not in st.session_state:
     st.session_state.vector_store = None
 
-if sync_button and api_key:
-    os.environ["GOOGLE_API_KEY"] = api_key
-    
-    try:
-        drive_service = get_drive_service()
-        st.info("Conectado a Google Drive. Buscando manuales...")
+if sync_button:
+    if not api_key:
+        st.error("Falta la API Key de Gemini.")
+    elif not json_file:
+        st.error("Falta cargar el archivo JSON de credenciales.")
+    else:
+        os.environ["GOOGLE_API_KEY"] = api_key
         
-        pdf_files = fetch_pdfs_from_drive(drive_service, FOLDER_ID)
-        
-        if not pdf_files:
-            st.warning("No se encontraron PDFs en la carpeta.")
-        else:
-            with st.spinner("Procesando e indexando tácticas..."):
-                all_docs = []
-                for name, path in pdf_files:
-                    loader = PyPDFLoader(path)
-                    all_docs.extend(loader.load())
-                    os.remove(path) # Limpiamos el temporal
-                
-                text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-                splits = text_splitter.split_documents(all_docs)
-                
-                embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-                vector_store = Chroma.from_documents(documents=splits, embedding=embeddings)
-                
-                st.session_state.vector_store = vector_store
-                st.success(f"¡{len(pdf_files)} manuales sincronizados y listos!")
-                
-    except Exception as e:
-        st.error(f"Error de conexión: {str(e)}")
+        try:
+            # Leer el archivo JSON directamente desde la interfaz
+            creds_dict = json.load(json_file)
+            drive_service = get_drive_service(creds_dict)
+            st.info("Conectado a Google Drive. Buscando manuales...")
+            
+            pdf_files = fetch_pdfs_from_drive(drive_service, FOLDER_ID)
+            
+            if not pdf_files:
+                st.warning("No se encontraron PDFs en la carpeta.")
+            else:
+                with st.spinner("Procesando e indexando tácticas..."):
+                    all_docs = []
+                    for name, path in pdf_files:
+                        loader = PyPDFLoader(path)
+                        all_docs.extend(loader.load())
+                        os.remove(path)
+                    
+                    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+                    splits = text_splitter.split_documents(all_docs)
+                    
+                    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+                    vector_store = Chroma.from_documents(documents=splits, embedding=embeddings)
+                    
+                    st.session_state.vector_store = vector_store
+                    st.success(f"¡{len(pdf_files)} manuales sincronizados y listos!")
+                    
+        except Exception as e:
+            st.error(f"Error de conexión: {str(e)}")
 
 # Área principal de chat/consultas
 st.markdown("### 📋 Generador de Planificaciones")
