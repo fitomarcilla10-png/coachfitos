@@ -101,7 +101,9 @@ if sync_button:
                     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
                     splits = text_splitter.split_documents(all_docs)
                     
-                    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+                    # --- AQUÍ ESTÁ LA CORRECCIÓN DEL MODELO ---
+                    embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
+                    
                     vector_store = Chroma.from_documents(documents=splits, embedding=embeddings)
                     
                     st.session_state.vector_store = vector_store
